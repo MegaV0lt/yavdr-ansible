@@ -15,6 +15,7 @@ case "$event" in
             exit 0
         }
         target="${videodir}/$(basename "${mount_path}")"
+        [[ -L "$target" && ! -e "$target" ]] && rm "$target"  # Remove invalid symlink 
         ln -s -T "$mount_path" "$target" || {
             logger -t "vdr recordings found" "mountpoint already exists, aborting"
             exit
