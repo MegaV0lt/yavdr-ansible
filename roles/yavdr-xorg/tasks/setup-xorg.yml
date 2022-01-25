@@ -28,12 +28,6 @@
     dest: /etc/systemd/system/x@.service.d/xlogin.conf
   notify: ["Reload Units"]
 
-- name: systemd-drop-in | load environment file for vdr.service
-  template:
-    src: templates/systemd/vdr-environ.j2
-    dest: /etc/systemd/system/vdr.service.d/load-environ.conf
-  notify: ["Reload Units"]
-
 - name: systemd-drop-in | user@{{ vdr.uid }}.service depends on x@vt7.service
   template:
     src: templates/user@666.service.d/x-dependency.conf.j2
@@ -77,6 +71,18 @@
       - vdr-plugin-desktop
       - feh
     state: present
+
+- name: set the vdr instance id for yavdr-frontend
+  yaml_edit:
+    path: /etc/yavdr-frontend/config.yml
+    key: vdr.id
+    int_value: "{{ vdr.instance_id | default(0) }}"
+
+- name: yavdr-frontend | set attach on startup to "{{ yavdr_frontend.attach_on_startup }}"
+  yaml_edit:
+    path: /etc/yavdr-frontend/config.yml
+    key: vdr.attach_on_startup
+    str_value: "{{ yavdr_frontend.attach_on_startup }}"
 
 - name: apt | install packages for Intel IGP
   apt:

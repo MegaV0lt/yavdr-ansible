@@ -34,6 +34,20 @@
     enabled: yes
     masked: no
 
+- name: set video directory for avahi-linker
+  ini_file:
+    path: /etc/avahi-linker/default.cfg
+    section: "targetdirs"
+    option: "vdr"
+    value: "{{ vdr.recdir }}"
+
+- name: set vdr instance id for avahi-linker
+  ini_file:
+    path: /etc/avahi-linker/default.cfg
+    section: "options"
+    option: "vdr_instance_id"
+    value: "{{ vdr.instance_id | default(0) }}"
+
 - name: restart avahi-linker if running
   systemd:
     name: avahi-linker
