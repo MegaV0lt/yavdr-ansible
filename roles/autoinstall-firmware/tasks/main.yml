@@ -18,7 +18,7 @@
 
 - name: Firmware ngenge_18.fw for ngene cards
   get_url:
-    url: http://l4m-daten.de/downloads/firmware/dvb-s2/linux/all/ngene_18.fw
+    url: https://linux4media.de/official_downloads/drivers/ngene_18.fw
     checksum: sha256:213d98ec2cd575eba15d82ee79fed7098e670de43792f8aa773a95cfb7c32060
     dest: /lib/firmware/ngene_18.fw
   when: '"ngene" in modules'
@@ -32,12 +32,12 @@
   when: '"ngene" in modules or "drxk" in modules'
   notify: ['reboot required']
 
-- name: Firmware for Hauppauge Win-TV HVR-4000 and NOVA-HD-S2
+- name: Firmware for Hauppauge Win-TV HVR-4000. NOVA-HD-S2 and Tevii S460
   get_url:
-    url: https://github.com/OpenELEC/dvb-firmware/blob/master/firmware/dvb-fe-cx24116.fw?raw=true
+    url: https://github.com/OpenELEC/dvb-firmware/raw/master/firmware/dvb-fe-cx24116.fw
     checksum: sha256:8fa49be12cf332b4c9b0379ef997be9ab6e193ae03aae55b39e033ae31e35da0
     dest: /lib/firmware/dvb-fe-cx24116.fw
-  when: '"14f1:8802" in pci'
+  when: '"14f1:8802" in pci or "d460:9022" in pci'
   notify: ['reboot required']
 
 - name: Firmware for Tevii S464/470/471/660

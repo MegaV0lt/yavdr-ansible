@@ -3,10 +3,13 @@
 - name: apt | install pulseaudio, pavucontrol and vdr-plugin-pulsecontrol
   apt:
     name:
+      - alsa-base
+      - alsa-utils
       - pulseaudio
       - pavucontrol
       - vdr-plugin-pulsecontrol
       - python3-pulsectl
+      - python3-dasbus
     state: present
     install_recommends: no
 
