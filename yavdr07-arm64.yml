@@ -1,6 +1,6 @@
 ---
-# file: yavdr07-rpi.yml
-# this playbook set up a yaVDR 0.7 installation on a Raspberry Pi 2 or 3
+# file: yavdr07-arm64.yml
+# this playbook set up a yaVDR 0.7 installation on a Raspberry Pi 4 or 5
 # please note that kodi is not available at the moment
 
 - name: set up a headless yaVDR server
@@ -12,7 +12,7 @@
     - yavdr-common
     - collect-facts              # query system facts
     - vdr
-    - rpi                        # install rpihddevice and let vdr run on tty7
+    - arm64-output                        # install rpihddevice and let vdr run on tty7
     - lifeguardng                # install and configure vdr-addon-lifeguard-ng
     - headless-session           # set up a headless systemd user session, e.g. for udiskie
     - yavdr-remote

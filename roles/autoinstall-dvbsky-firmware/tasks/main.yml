@@ -24,7 +24,7 @@
   block:
     - name: download and extract firmware
       unarchive:
-        src: http://www.dvbsky.net/download/linux/dvbsky-firmware.tar.gz
+        src: https://web.archive.org/web/20220131124432if_/http://www.dvbsky.net/download/linux/dvbsky-firmware.tar.gz
         dest: /tmp/
         remote_src: yes
 

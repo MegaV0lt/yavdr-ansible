@@ -12,7 +12,7 @@
   loop: "{{ repositories|flatten(levels=1) }}"
   tags:
     - ppa
-  when: ansible_architecture is match("x86_.*")
+  when: ansible_architecture is match("x86_.*") or ansible_architecture == "aarch64"
 
 - name: add PPAs for Raspberry Pi
   apt_repository:
@@ -23,6 +23,13 @@
   tags:
     - ppa
   when: ansible_architecture == 'armv7l'
+
+- name: add nvidia legacy PPA
+  apt_repository:
+      repo: 'ppa:kelebek333/nvidia-legacy'
+      state: present
+      update_cache: no
+  when: nvidia_legacy
 
 - name: run apt-get dist-upgrade
   apt:

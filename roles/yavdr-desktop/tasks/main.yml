@@ -8,6 +8,7 @@
     mode: '0775'
     owner: '{{ vdr.user }}'
     group: '{{ vdr.group }}'
+    recurse: yes
   loop:
     - '{{ vdr.home }}/.config/systemd/user'
     - '{{ vdr.home }}/.config/openbox'

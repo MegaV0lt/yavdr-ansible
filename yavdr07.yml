@@ -45,7 +45,8 @@
     - autoinstall-hardware-irmp  # install yavdr-hardware-irmp if a matching usb device is detected
     - autoinstall-atric-usb      # preconfigure lircd for Atric IR-WakeupUSB receiver
     - autoinstall-yausbir        # preconfigure lircd for yaUsbIR receiver
-    - autoinstall-dvbsky-firmware # download and install required firmware files for dvbsky cards
+    - install-dvb-firmware       # download and install all firmware files from the LibreElec dvb-firmware git repository
+    # - autoinstall-dvbsky-firmware # download and install required firmware files for dvbsky cards
     - autoinstall-firmware       # download and install firmware files for dvb devices
     #- install-sundtek            # install and configure sundtek drivers
     #- serial-ir                  # configure a serial port for "homebrew" ir receivers (e.g. Atric V5)

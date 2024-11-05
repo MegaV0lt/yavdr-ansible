@@ -9,7 +9,16 @@
     path: "{{ vdr.home }}/.config/systemd/user"
     state: directory
     owner: "{{ vdr.user }}"
-    group: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
+    mode: 0755
+
+- name: make vdr.user owner of ~/.config
+  file:
+    path: "{{ vdr.home }}/.config"
+    state: directory
+    recurse: true
+    owner: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
     mode: 0755
 
 - name: create tmux.service for the session

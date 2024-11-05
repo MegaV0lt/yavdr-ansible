@@ -1,15 +1,16 @@
 {{ ansible_managed | comment }}
 {% set primary_output = xorg.primary.connector|replace("-", "") %}
+{% set intel_driver = intel_driver | default("intel") %}
 {% if xorg.secondary is defined %}
   {% set secondary_output = xorg.secondary.connector|replace("-", "") %}
 {% endif %}
 
 Section "Device"
   Identifier  "Device0"
-  Driver      "intel"
+  Driver      "{{ intel_driver }}"
   Option      "TearFree" "true"
-{%if selected_frontend is defined and selected_frontend  == "softhdvaapi" %}
-  Option      "DRI" "3"
+{% if selected_frontend is defined and selected_frontend  == "softhdvaapi" and intel_driver == "intel" %}
+    Option      "DRI" "3"
 {% endif %}
 {% if xorg.secondary is defined %}
   Option      "ZaphodHeads" "{{ primary_output }}"
@@ -20,10 +21,10 @@ EndSection
 {% if xorg.secondary is defined %}
 Section "Device"
   Identifier  "Device1"
-  Driver      "intel"
+  Driver      "{{ intel_driver }}"
   Option      "TearFree" "true"
-{%if selected_frontend is defined and selected_frontend  == "softhdvaapi" %}
-  Option      "DRI" "3"
+{%if selected_frontend is defined and selected_frontend  == "softhdvaapi" and intel_driver == "intel" %}
+    Option      "DRI" "3"
 {% endif %}
   Option      "ZaphodHeads" "{{ secondary_output }}"
   Screen      1  

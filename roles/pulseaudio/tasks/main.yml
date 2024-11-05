@@ -26,6 +26,8 @@
 - name: ensure ~/bin exists for vdr user
   file:
     path: "{{ vdr.home }}/bin"
+    owner: "{{ vdr.user }}"
+    group: "{{ vdr.group}}"
     state: directory
     mode: 0755
 
@@ -39,6 +41,8 @@
   file:
     path: "{{ vdr.home }}/.config/systemd/user"
     state: directory
+    owner: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
     mode: 0755
 
 - name: create dbus service for dbus_pulsectl
@@ -46,5 +50,6 @@
     src: dbus_pulsectl/dbus-pulsectl.service.j2
     dest: "{{ vdr.home }}/.config/systemd/user/dbus-pulsectl.service"
     owner: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
 
     # TODO: better way to enable unit than in openbox autostart set by yavdr-desktop?

@@ -3,7 +3,7 @@
     path: "{{ vdr.home }}/.config"
     state: directory
     owner: "{{ vdr.user }}"
-    group: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
     mode: 0755
 
 - name: expand template for ~/.config/headless-session

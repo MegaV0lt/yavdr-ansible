@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 # Copyright: (c) 2019, Alexander Grothe <seahawk1986@gmx.de>
@@ -6,11 +6,12 @@
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
+from collections import OrderedDict
+from typing import Generator, List, Mapping, Tuple
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
-import subprocess
 
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
@@ -41,27 +42,25 @@ EXAMPLES = '''
 '''
 
 
-
-def find_dependencies(module, dependencies=[]):
+def find_dependencies(
+        module: str,
+        dependency_map: Mapping[str, List[str]],
+        dependencies: List[str]
+):
     dependencies.append(module)
     if module in dependency_map:
         for dependency in dependency_map[module]:
-            find_dependencies(dependency, dependencies)
+            find_dependencies(dependency, dependency_map, dependencies)
     return dependencies
 
 
-def build_module_dependency_map():
-    dependency_map = {}
-    with subprocess.Popen(['lsmod'],
-                          stdout=subprocess.PIPE,
-                          universal_newlines=True
-                          ) as p:
-        for line in p.stdout:
-            values = line.split()
-            if len(values) > 3:
-                #print("module {} depends on {}".format(values[0], values[3]))
-                dependency_map[values[0]] = values[3].split(',')
-    return dependency_map
+def module_dependency_gen() -> Generator[Tuple[str, List[str]], None, None]:
+    with open('/proc/modules') as f:
+        for line in f:
+            module_name, _, _, dependencies, *_ = line.split()
+            yield module_name, list(
+                filter(lambda x: x not in ('', '-'), dependencies.split(','))
+            )
 
 
 def main():
@@ -82,26 +81,37 @@ def main():
 
     # Check if module is loaded
     try:
-        is_loaded = False
-        with open('/proc/modules') as modules:
-            module_name = name.replace('-', '_') + ' '
-            for line in modules:
-                if line.startswith(module_name):
-                    is_loaded = True
-                    break
+        dependency_map = dict(module_dependency_gen())
     except IOError as e:
-        module.fail_json(msg=to_native(e), exception=traceback.format_exc(), **result)
+        module.fail_json(
+            msg=to_native(e),
+            exception=traceback.format_exc(), **result
+        )
+    else:
+        is_loaded = True if name in dependency_map else False
+        
 
     # remove module if it is loaded
     if is_loaded:
         if not module.check_mode:
-            dependency_map = build_module_dependency_map()
-            all_modules = find_dependencies(name)
-            all_modules.reverse()
+            # get a list of unique elements that keeps the original order
+            all_modules = list(
+                OrderedDict.fromkeys(
+                    reversed(
+                        find_dependencies(name, dependency_map, [])
+                    )
+                )
+            )
             for kernel_module in all_modules:
-                rc, out, err = module.run_command([module.get_bin_path('rmmod', True), kernel_module])
+                rc, out, err = module.run_command(
+                    [module.get_bin_path('rmmod', True), kernel_module]
+                )
                 if rc != 0:
-                    module.fail_json(msg=err, rc=rc, stdout=out, stderr=err, **result)
+                    module.fail_json(
+                        msg=err,
+                        rc=rc,
+                        stdout=out, stderr=err, **result
+                    )
                 else:
                     result['unloaded_modules'].append(kernel_module)
             if result['unloaded_modules']:

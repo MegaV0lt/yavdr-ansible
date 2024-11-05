@@ -24,8 +24,8 @@ import subprocess
 from lxml import etree as ET
 
 logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
-GUISETTINGS = '/var/lib/vdr/.kodi/userdata/guisettings.xml'
-CACHE_DIR = '/var/lib/vdr/.kodi/.display_cache'
+GUISETTINGS = '{{ kodi_config_dir }}/userdata/guisettings.xml'
+CACHE_DIR = '{{ kodi_config_dir  }}/.display_cache'
 VIDEOSCREEN_TEMPLATE = """<settings version="2">
     <setting id="videoscreen.monitor">{}</setting>
 </settings>"""

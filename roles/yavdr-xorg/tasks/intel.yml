@@ -12,6 +12,6 @@
 
 - name: "set intel_boot_options variable"
   set_fact:
-    intel_boot_options: "video={{ drm.primary.drm_connector }}:D drm.edid_firmware={{ drm.primary.drm_connector }}:edid/{{ drm.primary.edid }}" # {% for ignored_c in drm.ignored_outputs %}video={{ ignored_c }}:d{% endfor %}"
+    intel_boot_options: "video={{ drm.primary.drm_connector }}:D {% if drm.secondary is defined and drm.secondary.drm_connector is defined %}video={{ drm.secondary.drm_connector }}:D{% endif %} drm.edid_firmware={{ drm.primary.drm_connector }}:edid/{{ drm.primary.edid }}{% if drm.secondary is defined and drm.secondary.drm_connector is defined and drm.secondary.edid is defined %},{{ drm.secondary.drm_connector }}:edid/{{ drm.secondary.edid }}{% endif %}{% for ignored_c in drm.ignored_outputs %} video={{ ignored_c }}:d{% endfor %}"
   when: intel_set_boot_edid | bool
   notify: ['Update Initramfs', 'Update GRUB']

@@ -12,6 +12,9 @@ repositories:
   - '{{ ppa_owner }}/{{branch}}-main'
   - '{{ ppa_owner }}/{{branch}}-vdr'
   - '{{ ppa_owner }}/{{branch}}-kodi'
+
+# set to True to add the repository ppa:/kelebek333/nvidia-legacy for nvidia-legacy drivers (340, 390) and disable the ABI version check by the X-Server to use those old drivers
+nvidia_legacy: False
 timezone: 'Europe/Berlin'
 # timezone_hw can be set to 'UTC' or 'local' to set the preferred hardware clock
 # timezone. This variable is optional, the default behavior is to let systemd
@@ -22,8 +25,8 @@ timezone: 'Europe/Berlin'
 # timezone_hw: 'UTC'  # or 'local'
 default_locale: 'de_DE.UTF-8'
 generate_locales:  # see entries in /etc/locale.gen
-  - 'de_DE.UTF-8 UTF-8'
-  - 'en_US.UTF-8 UTF-8'
+  - 'de_DE.UTF-8'
+  - 'en_US.UTF-8'
 language_packs:
   - language-pack-de
   - language-pack-en
@@ -102,6 +105,8 @@ nfs:
 samba:
   workgroup: YAVDR
   windows_compatible: '{{ vdr.safe_dirnames }}'  # set to true to disable unix extensions, enable follow symlinks and wide links
+# install kodi as flatpak instead of a debian package
+kodi_as_flatpak: False
 # additional packages you want to install
 extra_packages:
   - htop

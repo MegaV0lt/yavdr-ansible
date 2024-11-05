@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 from __future__ import print_function
 import ast
 import binascii
@@ -313,8 +313,8 @@ def find_drm_connectors(connections):
         'ignored_outputs': ['HDMI-A-2', 'DP-1']
     }
     """
-    STATUS_GLOB = '/sys/class/drm/card0*/status'
-    CONNECTOR_RE = re.compile('card0-(?P<connector>[^/]+)/status')
+    STATUS_GLOB = '/sys/class/drm/card[0-9]*/status'
+    CONNECTOR_RE = re.compile('card[0-9]+-(?P<connector>[^/]+)/status')
 
     def read_edid_bytes(edid_file):
         edid_bytes = b''

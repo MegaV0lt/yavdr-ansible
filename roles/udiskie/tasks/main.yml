@@ -16,6 +16,8 @@
   template:
     src: templates/config.yml.j2
     dest: '{{ vdr.home }}/.config/udiskie/config.yml'
+    owner: '{{ vdr.user }}'
+    group: '{{ vdr.group }}'
 
 
 - name: create ~/.config/systemd/user
@@ -29,6 +31,8 @@
   template:
     src: templates/udiskie.service.j2
     dest: '{{ vdr.home }}/.config/systemd/user/udiskie.service'
+    owner: '{{ vdr.user }}'
+    group: '{{ vdr.group }}'
 
 - name: create ~/bin
   file:
@@ -42,8 +46,8 @@
     src: templates/udiskie_vdr_mount_helper.j2
     dest: '{{ vdr.home }}/bin/udiskie_vdr_mount_helper'
     mode: 0755
-    owner: vdr
-    group: vdr
+    owner: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
 
 - name: expand template for udiskie vdr commands
   template:

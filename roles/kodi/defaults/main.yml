@@ -1,0 +1,11 @@
+kodi_as_flatpak: False
+kodi_config_dir: '{{ vdr.home }}/{{ kodi_as_flatpak | ternary(".var/app/tv.kodi.Kodi/data", ".kodi") }}'
+flatpak_kodi_allowed_dirs:
+  - /media
+  - /net
+  - /srv/audio
+  - /srv/files
+  - /srv/picture
+  - /srv/video
+  - /home/vdr/Downloads
+  - /var/lib/vdr/Downloads

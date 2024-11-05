@@ -6,6 +6,7 @@
 - [[#playbooks][Playbooks]]
   - [[#yavdr07yml][yavdr07.yml]]
   - [[#yavdr07-headlessyml][yavdr07-headless.yml]]
+  - [[#yavdr07-arm64yml][yavdr07-arm64.yml]]
   - [[#yavdr07-rpiyml][yavdr07-rpi.yml]]
 - [[#hosts][Hosts]]
 - [[#group-variables][Group Variables]]
@@ -15,6 +16,7 @@
   - [[#media-directories][Media directories]]
   - [[#nfs][NFS]]
   - [[#samba][Samba]]
+  - [[#kodi][KODI]]
   - [[#additional-packages][Additional packages]]
   - [[#channellogos][Channellogos]]
   - [[#system-pre-configuration][System pre-configuration]]
@@ -53,6 +55,7 @@
   - [[#autoinstall-imonlcd][autoinstall-imonlcd]]
   - [[#autoinstall-imonvfd][autoinstall-imonvfd]]
   - [[#autoinstall-libcecdaemon][autoinstall-libcecdaemon]]
+  - [[#autoinstall-dvb-firmware][autoinstall-dvb-firmware]]
   - [[#autoinstall-pvr350][autoinstall-pvr350]]
   - [[#autoinstall-hauppauge-pvr][autoinstall-hauppauge-pvr]]
   - [[#autoinstall-firmware][autoinstall-firmware]]
@@ -61,11 +64,12 @@
   - [[#autoinstall-dvbsddevice][autoinstall-dvbsddevice]]
   - [[#autoinstall-hardware-irmp][autoinstall-hardware-irmp]]
   - [[#serial-ir-receivers][Serial IR Receivers]]
-  - [[#kodi][kodi]]
+  - [[#kodi-1][kodi]]
   - [[#dvd][dvd]]
   - [[#vdr-epg-daemon][vdr-epg-daemon]]
   - [[#install-sundtek][install-sundtek]]
   - [[#channel-logos][channel logos]]
+  - [[#arm64-output][arm64-output]]
   - [[#rpi][rpi]]
   - [[#channelpedia-upload][channelpedia upload]]
   - [[#template-test][template-test]]
@@ -217,6 +221,22 @@ export ANSIBLE_PIPELINING=1
 ansible-playbook yavdr07-headless.yml -b -i 'localhost_inventory' --connection=local --tags="all"
 #+END_SRC
 
+#+BEGIN_SRC shell :tangle install-yavdr-arm64.sh :shebang "#!/usr/bin/env bash"
+set -e
+
+if (( $EUID != 0 )); then
+    echo "This script must be run using sudo -H or as root"
+    exit
+fi
+
+. scripts/install-packages.sh
+
+# speed up playbook execution
+export ANSIBLE_PIPELINING=1
+
+ansible-playbook yavdr07-arm64.yml -b -i 'localhost_inventory' --connection=local --tags="all"
+#+END_SRC
+
 #+BEGIN_SRC shell :tangle install-yavdr-rpi.sh :shebang "#!/usr/bin/env bash"
 set -e
 
@@ -283,7 +303,8 @@ The ~yavdr07.yml~ playbook sets up a fully-featured yaVDR installation:
     - autoinstall-hardware-irmp  # install yavdr-hardware-irmp if a matching usb device is detected
     - autoinstall-atric-usb      # preconfigure lircd for Atric IR-WakeupUSB receiver
     - autoinstall-yausbir        # preconfigure lircd for yaUsbIR receiver
-    - autoinstall-dvbsky-firmware # download and install required firmware files for dvbsky cards
+    - install-dvb-firmware       # download and install all firmware files from the LibreElec dvb-firmware git repository
+    # - autoinstall-dvbsky-firmware # download and install required firmware files for dvbsky cards
     - autoinstall-firmware       # download and install firmware files for dvb devices
     #- install-sundtek            # install and configure sundtek drivers
     #- serial-ir                  # configure a serial port for "homebrew" ir receivers (e.g. Atric V5)
@@ -326,7 +347,8 @@ For a headless server installation ~yavdr07-headless.yml~ is a good choice
     - nfs-server
     - grub-config
     - autoinstall-dvbsddevice    # install vdr-plugin-dvbsddevice if a matching card is detected
-    - autoinstall-dvbsky-firmware # download and install required firmware files for dvbsky cards
+    - install-dvb-firmware       # download and install all firmware files from the LibreElec dvb-firmware git repository
+    # - autoinstall-dvbsky-firmware # download and install required firmware files for dvbsky cards
     - autoinstall-firmware       # download and install firmware files for dvb devices
     - autoinstall-hauppauge-pvr  # install vdr-plugin-pvrinput if a matching card is found
     - autoinstall-pvr350         # install vdr-plugin-pvr350 if a matching card is detected
@@ -340,10 +362,60 @@ For a headless server installation ~yavdr07-headless.yml~ is a good choice
   handlers:
     - import_tasks: handlers/main.yml
 #+END_SRC
+** yavdr07-arm64.yml
+VDR-only setup for Raspberry Pi 4 and 5 on 64 bit installation.
+Please note that kodi is not available at the moment.
+#+begin_src yaml :tangle yavdr07-arm64.yml :padline no
+---
+# file: yavdr07-arm64.yml
+# this playbook set up a yaVDR 0.7 installation on a Raspberry Pi 4 or 5
+# please note that kodi is not available at the moment
+
+- name: set up a headless yaVDR server
+  hosts: all
+  become: true
+  environment:
+    LANG: "{{ default_locale | default('c.UTF-8') }}"
+  roles:
+    - yavdr-common
+    - collect-facts              # query system facts
+    - vdr
+    - arm64-output                        # install rpihddevice and let vdr run on tty7
+    - lifeguardng                # install and configure vdr-addon-lifeguard-ng
+    - headless-session           # set up a headless systemd user session, e.g. for udiskie
+    - yavdr-remote
+    - yavdr-network
+    #- samba-install
+    #- samba-config
+    #- nfs-server
+    - autoinstall-atric-usb      # preconfigure lircd for Atric IR-WakeupUSB receiver
+    - autoinstall-dvbsddevice    # install vdr-plugin-dvbsddevice if a matching card is detected
+    - install-dvb-firmware       # download and install all firmware files from the LibreElec dvb-firmware git repository
+    # - autoinstall-dvbsky-firmware # download and install required firmware files for dvbsky cards
+    - autoinstall-firmware       # download and install firmware files for dvb devices
+    - autoinstall-hardware-irmp  # install yavdr-hardware-irmp if a matching usb device is detected
+    - autoinstall-hauppauge-pvr  # install vdr-plugin-pvrinput if a matching card is found
+    - autoinstall-imonlcd        # install vdr-plugin-imonlcd if a matchind display is connected
+    - autoinstall-imonvfd        # install vdr-plugin-imonvfd if a matchind display is connected
+    - autoinstall-satip          # install vdr-plugin-satip if a Sat>IP server has been found
+    - autoinstall-targavfd       # install vdr-plugin-targavfd if display is connected
+    - autoinstall-yausbir        # preconfigure lircd for yaUsbIR receiver
+    - set-output-plugin  # ensures that only one output plugin is active (a manual override is possible by setting selected_frontend to the name of the wanted output plugin)
+    #- epgd                      # install vdr-epg-daemon
+    #- channelpedia               # upload channels.conf to channelpedia (see role description in Manual)
+    #- wakeup
+    #- channellogos               # use channellogos provided by https://github.com/Jasmeet181/mediaportal-*-logos
+                                 # set the variable channellogos_languages to a list of the langues you want (see group_vars/all)
+                                  # and link them to /var/lib/channellogos/ - this needs at least 300 MB of storage
+  tags:
+    - always
+  handlers:
+    - import_tasks: handlers/main.yml
+#+end_src
 ** yavdr07-rpi.yml
 VDR-only setup for Raspberry Pi 2 and 3. At least 1 GB of RAM is recommended.
 Please note that kodi is not available at the moment.
-#+begin_src yaml :tangle yavdr07-rpi.yml
+#+begin_src yaml :tangle yavdr07-rpi.yml :padline no
 ---
 # file: yavdr07-rpi.yml
 # this playbook set up a yaVDR 0.7 installation on a Raspberry Pi 2 or 3
@@ -368,7 +440,8 @@ Please note that kodi is not available at the moment.
     #- nfs-server
     - autoinstall-atric-usb      # preconfigure lircd for Atric IR-WakeupUSB receiver
     - autoinstall-dvbsddevice    # install vdr-plugin-dvbsddevice if a matching card is detected
-    - autoinstall-dvbsky-firmware # download and install required firmware files for dvbsky cards
+    - install-dvb-firmware       # download and install all firmware files from the LibreElec dvb-firmware git repository
+    # - autoinstall-dvbsky-firmware # download and install required firmware files for dvbsky cards
     - autoinstall-firmware       # download and install firmware files for dvb devices
     - autoinstall-hardware-irmp  # install yavdr-hardware-irmp if a matching usb device is detected
     - autoinstall-hauppauge-pvr  # install vdr-plugin-pvrinput if a matching card is found
@@ -398,7 +471,7 @@ localhost ansible_connection=local
 #+END_SRC
 * Group Variables
 ** PPAs
-#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes
+#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes :padline no
 ---
 # file: group_vars/all
 # Ansible configuration, overwrite if you want to use the playbook(s) remotely
@@ -414,9 +487,12 @@ repositories:
   - '{{ ppa_owner }}/{{branch}}-vdr'
   - '{{ ppa_owner }}/{{branch}}-kodi'
 
+# set to True to add the repository ppa:/kelebek333/nvidia-legacy for nvidia-legacy drivers (340, 390) and disable the ABI version check by the X-Server to use those old drivers
+nvidia_legacy: False
+
 #+END_SRC
 ** Locales and Timezone
-#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes
+#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes :padline no
 timezone: 'Europe/Berlin'
 # timezone_hw can be set to 'UTC' or 'local' to set the preferred hardware clock
 # timezone. This variable is optional, the default behavior is to let systemd
@@ -427,14 +503,14 @@ timezone: 'Europe/Berlin'
 # timezone_hw: 'UTC'  # or 'local'
 default_locale: 'de_DE.UTF-8'
 generate_locales:  # see entries in /etc/locale.gen
-  - 'de_DE.UTF-8 UTF-8'
-  - 'en_US.UTF-8 UTF-8'
+  - 'de_DE.UTF-8'
+  - 'en_US.UTF-8'
 language_packs:
   - language-pack-de
   - language-pack-en
 #+END_SRC
 ** VDR user, directories, special configuration and plugins
-#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes
+#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes :padline no
 
 # properties of the user vdr and vdr-related options
 # NOTE: user name, uid and confdir must match the values set by the vdr package
@@ -501,7 +577,7 @@ vdr_plugins:
 
 #+END_SRC
 ** Media directories
-#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes
+#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes :padline no
 
 # dictionary of directories for (shared) files. Automatically exported via NFS and Samba if those roles are enabled
 media_dirs:
@@ -514,17 +590,23 @@ media_dirs:
 
 #+END_SRC
 ** NFS
-#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes
+#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes :padline no
 
 nfs:
   insecure: false  # set to true for OS X clients or if you plan to use libnfs as unprivileged user (e.g. KODI)
 
 #+END_SRC
 ** Samba
-#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes
+#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes :padline no
 samba:
   workgroup: YAVDR
   windows_compatible: '{{ vdr.safe_dirnames }}'  # set to true to disable unix extensions, enable follow symlinks and wide links
+
+#+END_SRC
+** KODI
+#+BEGIN_SRC yaml :tangle group_vars/all :mkdirp yes :padline no
+# install kodi as flatpak instead of a debian package
+kodi_as_flatpak: False
 
 #+END_SRC
 ** Additional packages
@@ -783,6 +865,7 @@ You can set a list of package repositories which provide the necessary packages.
 #+BEGIN_SRC yaml :tangle roles/yavdr-common/defaults/main.yml :mkdirp yes :padline yes
 branch: experimental
 ppa_owner: 'ppa:yavdr'
+nvidia_legacy: False
 
 # add the following PPAs
 repositories:
@@ -807,9 +890,9 @@ timezone: 'Europe/Berlin'
 # clock if it is set to local time.
 # timezone_hw: 'UTC'  # or 'local'
 default_locale: 'de_DE.UTF-8'
-generate_locales:  # see entries in /etc/locale.gen
-  - 'de_DE.UTF-8 UTF-8'
-  - 'en_US.UTF-8 UTF-8'
+generate_locales:  # see entries in /etc/locale.gen - use just the name
+  - 'de_DE.UTF-8'
+  - 'en_US.UTF-8'
 language_packs:
   - language-pack-de
   - language-pack-en
@@ -976,7 +1059,7 @@ yavdr-common executes the following tasks:
   loop: "{{ repositories|flatten(levels=1) }}"
   tags:
     - ppa
-  when: ansible_architecture is match("x86_.*")
+  when: ansible_architecture is match("x86_.*") or ansible_architecture == "aarch64"
 
 - name: add PPAs for Raspberry Pi
   apt_repository:
@@ -988,6 +1071,13 @@ yavdr-common executes the following tasks:
     - ppa
   when: ansible_architecture == 'armv7l'
 
+- name: add nvidia legacy PPA
+  apt_repository:
+      repo: 'ppa:kelebek333/nvidia-legacy'
+      state: present
+      update_cache: no
+  when: nvidia_legacy
+
 - name: run apt-get dist-upgrade
   apt:
       upgrade: dist
@@ -996,24 +1086,32 @@ yavdr-common executes the following tasks:
 ***** ensure cloud-init is not installed
 This should at least prevent black screen errors after a reboot, if the Ubuntu Cloud Server Image has been used for install.
 #+BEGIN_SRC yaml :tangle roles/yavdr-common/tasks/configure_system.yml :mkdirp yes
-- name: "debconf | disable all cloud-init datasources"
-  debconf:
-    name: cloud-init
-    question: cloud-init/datasources
-    value: ''
-    vtype: select
-  register: cloud_init_debconf
+- name: package_facts | lookup installed packages
+  package_facts:
+    manager: auto
 
-- name: "command | reconfigure cloud-init package"
-  command: dpkg-reconfigure -f noninteractive cloud-init
-  ignore_errors: yes
-  when:  cloud_init_debconf.changed
-  # notify: ['rerun required']
+- name: remove cloud-init if necessary
+  block:
+    - name: "debconf | disable all cloud-init datasources"
+      debconf:
+        name: cloud-init
+        question: cloud-init/datasources
+        value: ''
+        vtype: select
+      register: cloud_init_debconf
 
-- name: "apt | ensure package cloud-init is not installed"
-  apt:
-    name: cloud-init
-    state: absent
+    - name: "command | reconfigure cloud-init package"
+      command: dpkg-reconfigure -f noninteractive cloud-init
+      ignore_errors: yes
+      when:  cloud_init_debconf.changed
+      # notify: ['rerun required']
+
+    - name: "apt | ensure package cloud-init is not installed"
+      apt:
+        name: cloud-init
+        state: absent
+  when: "'cloud-init' in ansible_facts.packages"
+
 #+END_SRC
 ***** locales and timezone
 #+BEGIN_SRC yaml :tangle roles/yavdr-common/tasks/configure_system.yml :mkdirp yes
@@ -1055,21 +1153,37 @@ This should at least prevent black screen errors after a reboot, if the Ubuntu C
       notify: reconfigure_tzdata
   when: tz_setting.changed
 
-- name: debconf | set default locale
-  debconf:
-    name: locales
-    question: locales/default_environment_locale
-    value: '{{ default_locale }}'
-    vtype: select
-  notify: reconfigure_locales
 
-- name: debconf | set locales to be generated
-  debconf:
-    name: locales
-    question: locales/locales_to_be_generated
-    value: "{{ generate_locales | join(', ') }}"
-    vtype: multiselect
-  notify: reconfigure_locales
+# based on https://serverfault.com/a/981742
+- block:
+   - name: Ensure localisation files for '{{ default_locale }}' are available
+     locale_gen:
+       name: "{{ default_locale }}"
+       state: present
+
+   - name: Ensure localisation files for '{{ generate_locales }}' are available
+     locale_gen:
+       name: "{{ item }}"
+       state: present
+     loop: "{{ generate_locales }}"
+
+   - name: Get current locale and language configuration
+     command: localectl status
+     register: locale_status
+     changed_when: false
+
+   - name: Parse 'LANG' from current locale and language configuration
+     set_fact:
+       locale_lang: "{{ locale_status.stdout | regex_search('LANG=([^\n]+)', '\\1') | first }}"
+
+   - name: Parse 'LANGUAGE' from current locale and language configuration
+     set_fact:
+       locale_language: "{{ locale_status.stdout | regex_search('LANGUAGE=([^\n]+)', '\\1') | default([locale_lang], true) | first }}"
+
+   - name: Configure locale to '{{ default_locale }}' and language to '{{ default_locale }}'
+     become: yes
+     command: localectl set-locale LANG={{ default_locale }} LANGUAGE={{ default_locale }}
+     changed_when: locale_lang != default_locale or locale_language != default_locale
 
 #+END_SRC
 ***** Use bash instead of dash
@@ -2519,6 +2633,7 @@ install_avahi: true
       name:
           - avahi-daemon
           - avahi-utils
+          - autofs
           #- biosdevname # caution: this may change device names after a minimal installation!
           - ethtool
           - nfs-common
@@ -3309,6 +3424,8 @@ if __name__ == '__main__':
 - name: ensure ~/bin exists for vdr user
   file:
     path: "{{ vdr.home }}/bin"
+    owner: "{{ vdr.user }}"
+    group: "{{ vdr.group}}"
     state: directory
     mode: 0755
 
@@ -3322,6 +3439,8 @@ if __name__ == '__main__':
   file:
     path: "{{ vdr.home }}/.config/systemd/user"
     state: directory
+    owner: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
     mode: 0755
 
 - name: create dbus service for dbus_pulsectl
@@ -3329,6 +3448,7 @@ if __name__ == '__main__':
     src: dbus_pulsectl/dbus-pulsectl.service.j2
     dest: "{{ vdr.home }}/.config/systemd/user/dbus-pulsectl.service"
     owner: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
 
     # TODO: better way to enable unit than in openbox autostart set by yavdr-desktop?
     
@@ -3481,7 +3601,16 @@ This role prepares a basic systemd user session
     path: "{{ vdr.home }}/.config/systemd/user"
     state: directory
     owner: "{{ vdr.user }}"
-    group: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
+    mode: 0755
+
+- name: make vdr.user owner of ~/.config
+  file:
+    path: "{{ vdr.home }}/.config"
+    state: directory
+    recurse: true
+    owner: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
     mode: 0755
 
 - name: create tmux.service for the session
@@ -3538,7 +3667,7 @@ dependencies:
     path: "{{ vdr.home }}/.config"
     state: directory
     owner: "{{ vdr.user }}"
-    group: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
     mode: 0755
 
 - name: expand template for ~/.config/headless-session
@@ -3640,6 +3769,8 @@ This role installs and preconfigures udiskie
   template:
     src: templates/config.yml.j2
     dest: '{{ vdr.home }}/.config/udiskie/config.yml'
+    owner: '{{ vdr.user }}'
+    group: '{{ vdr.group }}'
 
 
 - name: create ~/.config/systemd/user
@@ -3653,6 +3784,8 @@ This role installs and preconfigures udiskie
   template:
     src: templates/udiskie.service.j2
     dest: '{{ vdr.home }}/.config/systemd/user/udiskie.service'
+    owner: '{{ vdr.user }}'
+    group: '{{ vdr.group }}'
 
 - name: create ~/bin
   file:
@@ -3666,8 +3799,8 @@ This role installs and preconfigures udiskie
     src: templates/udiskie_vdr_mount_helper.j2
     dest: '{{ vdr.home }}/bin/udiskie_vdr_mount_helper'
     mode: 0755
-    owner: vdr
-    group: vdr
+    owner: "{{ vdr.user }}"
+    group: "{{ vdr.group }}"
 
 - name: expand template for udiskie vdr commands
   template:
@@ -4344,6 +4477,8 @@ preferred_refreshrates:
 
 intel_boot_options: ""
 intel_set_boot_edid: false
+intel_driver: "intel"  # choose one of "intel" and "modesetting"
+softhddevice_intel_output_method: "va-api"  # choose one of va-api, va-api-glx, va-api-egl
 nvidia_force_dpi: 0
 
 yavdr_frontend:
@@ -4417,8 +4552,15 @@ yavdr_frontend:
   loop:
     - '-D'
     - '-w alsa-driver-broken'
-    - '{{ "-v va-api" if (intel_detected and not nvidia_detected) else "" }}'
     # - '-a pulse' # do we need this with our existing asound.conf?
+
+- name: vdr-config | set intel video output method for softhddevice
+  lineinfile:
+    path: /etc/vdr/conf.avail/softhddevice.conf
+    state: present
+    regexp: "^-v .*"
+    line: "-v {{ softhddevice_intel_output_method | default('va-api') }}"
+  when: (intel_detected and not nvidia_detected)
 
 - name: add a login shell for the user vdr
   user:
@@ -4441,6 +4583,13 @@ yavdr_frontend:
       - feh
       - xdg-utils
     state: present
+
+- name: apt | install intel xorg driver
+  apt:
+    name:
+      - xserver-xorg-video-intel
+    state: present
+  when: intel_driver == 'intel'
 
 - name: set the vdr instance id for yavdr-frontend
   yaml_edit:
@@ -4756,7 +4905,7 @@ TODO: create ~clean-edids~ script/role/Playbook to undo kernel boot options for 
 
 - name: "set intel_boot_options variable"
   set_fact:
-    intel_boot_options: "video={{ drm.primary.drm_connector }}:D drm.edid_firmware={{ drm.primary.drm_connector }}:edid/{{ drm.primary.edid }}" # {% for ignored_c in drm.ignored_outputs %}video={{ ignored_c }}:d{% endfor %}"
+    intel_boot_options: "video={{ drm.primary.drm_connector }}:D {% if drm.secondary is defined and drm.secondary.drm_connector is defined %}video={{ drm.secondary.drm_connector }}:D{% endif %} drm.edid_firmware={{ drm.primary.drm_connector }}:edid/{{ drm.primary.edid }}{% if drm.secondary is defined and drm.secondary.drm_connector is defined and drm.secondary.edid is defined %},{{ drm.secondary.drm_connector }}:edid/{{ drm.secondary.edid }}{% endif %}{% for ignored_c in drm.ignored_outputs %} video={{ ignored_c }}:d{% endfor %}"
   when: intel_set_boot_edid | bool
   notify: ['Update Initramfs', 'Update GRUB']
 
@@ -4784,8 +4933,8 @@ Before=graphical.target
 [Service]
 Type=forking
 ExecStartPre=/usr/bin/bash -c "printf '\0' > /sys/module/drm/parameters/edid_firmware"
-ExecStartPre-=/usr/bin/bash -c 'shopt -s nullglob; for e in /sys/kernel/debug/dri/0/*/edid_override; do echo -n reset > "$$e"; done'
-ExecStartPre=/usr/bin/bash -c 'shopt -s nullglob; for e in /sys/class/drm/card0*/status; do echo -n detect > "$$e"; done'
+ExecStartPre=-/usr/bin/bash -c 'shopt -s nullglob; for e in /sys/kernel/debug/dri/[0-9]/*/edid_override; do echo -n reset > "$$e"; done'
+ExecStartPre=/usr/bin/bash -c 'shopt -s nullglob; for e in /sys/class/drm/card[0-9]*/status; do echo -n detect > "$$e"; done'
 ExecStart=/usr/bin/x-daemon -logverbose 6 -noreset %I -config /etc/X11/xorg-verbose.conf
 #+END_SRC
 ***** Drop-in snippet for x@.service
@@ -4957,8 +5106,14 @@ EndSection
 ***** xorg.conf
 
 #+CAPTION: roles/yavdr-xorg/templates/xorg-verbose.conf.j2
-#+BEGIN_SRC conf :tangle roles/yavdr-xorg/templates/xorg-verbose.conf.j2
+#+BEGIN_SRC  jinja2 :tangle roles/yavdr-xorg/templates/xorg-verbose.conf.j2
 {{ ansible_managed | comment }}
+
+{% if nvidia_legacy | default(False) %}
+Section "ServerFlags"
+    Option "IgnoreABI" "true"
+EndSection
+{% endif %}
 
 Section "Device"
         Identifier "nvidia"
@@ -4974,7 +5129,7 @@ EndSection
 #+END_SRC
 
 #+CAPTION: roles/yavdr-xorg/templates/xorg.conf.j2
-#+BEGIN_SRC conf :tangle roles/yavdr-xorg/templates/xorg.conf.j2
+#+BEGIN_SRC jinja2 :tangle roles/yavdr-xorg/templates/xorg.conf.j2
 {{ ansible_managed | comment }}
 
 Section "ServerLayout"
@@ -4987,6 +5142,12 @@ Section "ServerLayout"
     #InputDevice    "Mouse0" "CorePointer"
     Option         "Xinerama" "0"
 EndSection
+
+{% if nvidia_legacy | default(False) %}
+Section "ServerFlags"
+    Option "IgnoreABI" "true"
+EndSection
+{% endif %}
 
 Section "InputClass"
     Identifier "exclude eventlircd devices"
@@ -5099,6 +5260,12 @@ Section "ServerLayout"
     InputDevice    "Keyboard0" "CoreKeyboard"
     InputDevice    "Mouse0" "CorePointer"
 EndSection
+
+{ % if nvidia_legacy | default(False) % }
+Section "ServerFlags"
+    Options "IgnoreABI" "true"
+EndSection
+{ % endif % }
 
 Section "InputDevice"
     # generated from default
@@ -5304,7 +5471,8 @@ EndSection
 # load hook helper functions
 . /usr/share/initramfs-tools/hook-functions
 
-rm -r /lib/firmware/edid/edid.*.bin
+mkdir -p /lib/firmware/edid/
+rm -fr /lib/firmware/edid/edid.*.bin
 find "/etc/X11/" -name "edid.*.bin" -type f -exec cp -t "/lib/firmware/edid/" {} +
 mkdir -p "${DESTDIR}/lib/firmware/edid"
 find "/etc/X11/" -name "edid.*.bin" -type f -exec cp -t "${DESTDIR}/lib/firmware/edid/" {} +
@@ -5334,6 +5502,7 @@ dependencies:
     mode: '0775'
     owner: '{{ vdr.user }}'
     group: '{{ vdr.group }}'
+    recurse: yes
   loop:
     - '{{ vdr.home }}/.config/systemd/user'
     - '{{ vdr.home }}/.config/openbox'
@@ -5519,8 +5688,10 @@ exec openbox-session
 #+END_SRC
 **** openbox
 ***** autostart
-#+BEGIN_SRC shell :tangle roles/yavdr-desktop/templates/openbox/autostart.j2 :mkdirp yes :shebang #!/usr/bin/bash
+#+BEGIN_SRC shell :tangle roles/yavdr-desktop/templates/openbox/autostart.j2 :mkdirp yes :shebang #!/usr/bin/dash
 # forward environment variables to an environment file and the systemd user session
+export ENV
+exec bash -s << "EOF"
 env | grep "DISPLAY\|DBUS_SESSION_BUS_ADDRESS\|XDG_RUNTIME_DIR\|XDG_DATA_DIRS" > ~/.session-env
 systemctl --user import-environment DISPLAY XAUTHORITY XDG_RUNTIME_DIR XDG_DATA_DIRS DBUS_SESSION_BUS_ADDRESS
 
@@ -5549,6 +5720,7 @@ fi
 
 # start systemd units for the yavdr user session
 systemctl --user isolate yavdr-desktop.target
+EOF
 #+END_SRC
 ***** rc.xml
 #+BEGIN_SRC xml :tangle roles/yavdr-desktop/templates/openbox/rc.xml.j2 :mkdirp yes :padline no
@@ -6364,6 +6536,17 @@ systemctl --user isolate yavdr-desktop.target
       <maximized>yes</maximized>
       <!--<skip_pager>yes</skip_pager>-->
       <skip_taskbar>no</skip_taskbar>
+    </application>
+    <!-- the openglosd window shouldn't gain focus on creation,
+            not appear in the task bar or when switching between windows
+            and stay below the other windows -->
+    <application title="openglosd">
+      <decor>no</decor>
+      <maximized>no</maximized>
+      <focus>no</focus>
+      <layer>below</layer>
+      <skip_pager>yes</skip_pager>
+      <skip_taskbar>yes</skip_taskbar>
     </application>
     <application title="vaapidevice">
       <decor>no</decor>
@@ -7187,6 +7370,17 @@ systemctl --user isolate yavdr-desktop.target
       <!--<skip_pager>yes</skip_pager>-->
       <skip_taskbar>no</skip_taskbar>
     </application>
+    <!-- the openglosd window shouldn't gain focus on creation,
+            not appear in the task bar or when switching between windows
+            and stay below the other windows -->
+    <application title="openglosd">
+      <decor>no</decor>
+      <maximized>no</maximized>
+      <focus>no</focus>
+      <layer>below</layer>
+      <skip_pager>yes</skip_pager>
+      <skip_taskbar>yes</skip_taskbar>
+    </application>
     <application title="vaapidevice">
       <decor>no</decor>
       <maximized>yes</maximized>
@@ -7556,7 +7750,10 @@ Please note that you need to disable this role if you are using nvidia drivers w
         state: present
 
     - name: use ubuntu-drivers to install additional drivers automatically
-      command: ubuntu-drivers --package-list /etc/yavdr/autoinstalled autoinstall
+      command: ubuntu-drivers --package-list /etc/yavdr/autoinstalled install
+      register: ubuntu_drivers_install
+      changed_when: '"All the available drivers are already installed." not in ubuntu_drivers_install.stdout_lines[-1]'
+
   when: (ansible_virtualization_type != "virtualbox" and ansible_virtualization_role != "guest")
         # ubuntu-drivers-common tries to autoinstall
         # conflicting packages for virtualbox in Ubuntu 16.04 and 18.04 :(
@@ -7774,8 +7971,6 @@ dependencies:
 
     - name: run udevadm trigger to force udev rule to create symlinks
       shell: udevadm trigger -c add -s tty -w /dev/ttyACM*
-      args:
-          warn: no
 
     - name: enable lircd, eventlircd, lircd2uinput
       systemd:
@@ -8034,6 +8229,50 @@ Size=16x2
     name: "libcec-daemon"
   when: '"2548:1002" in usb'
 #+END_SRC
+
+** autoinstall-dvb-firmware
+This tasks installs the dvb-firmwares collected by LibreElec
+*** tasks
+#+begin_src yaml :tangle roles/install-dvb-firmware/tasks/main.yml
+---
+# file roles/autoinstall-dvb-firmware/tasks/main.yml
+
+- name: install LibreElec dvb-firmware files
+  block:
+    - name: clone git repository
+      git:
+        repo: "https://github.com/LibreElec/dvb-firmware.git"
+        dest: /var/cache/dvb-firmware
+        clone: yes
+        update: yes
+        depth: 1
+        force: true
+      register: git_dvb_firmware
+
+    - name: copy firwmware files if needed
+      block:
+        - name: get firmware files to copy
+          command: |
+            find /var/cache/dvb-firmware/firmware  -type f -regex '.*/*\.\(fw\|bin\)$' -printf '%P\n'
+          register: firmware_to_copy
+          changed_when: false
+
+        - name: create directories for firmware files
+          file:
+            state: directory
+            path: "/var/cache/dvb-firmware/firmware/{{ item }}"
+          loop: "{{ firmware_to_copy.stdout_lines | map('dirname') | unique | list }}"
+
+        - name: copy firmware files to /lib/firmware
+          copy:
+            src: "/var/cache/dvb-firmware/firmware/{{ item }}"
+            dest: /lib/firmware/
+            owner: root
+            group: root
+            mode: "0644"
+          loop: "{{ firmware_to_copy.stdout_lines }}"
+      when: git_dvb_firmware.changed or always_update_dvb_firmware | default (False)
+#+end_src
 ** autoinstall-pvr350
 *** tasks
 #+BEGIN_SRC yaml :tangle roles/autoinstall-pvr350/tasks/main.yml :padline no
@@ -8065,6 +8304,36 @@ dependencies:
   - { role: collect-facts }
 
 #+END_SRC
+*** defaults
+#+BEGIN_SRC yaml :tangle roles/autoinstall-firmware/defaults/main.yml :padline no
+hauppauge_wintv_hd_usb_ids:
+  - "2013:025f" # PCTV292e
+  - "2040:0264" # soloHD
+  - "2040:8268" # soloHD
+  - "2040:0265" # dualHD in lsoc mode
+  - "2040:8265" # dualHD in bulk mode
+
+hauppauge_wintv_hd_pci_ids:
+  - "14f1:8880" # HCR-5525
+  - "14f1:8852" # WinTV Quad HD
+
+ds3000_pci_ids:
+  - "d464:9022"
+  - "14f1:8802"
+  - "d470:9022"
+  - "d471:9022"
+
+ds3000_usb_ids:
+  - "9022:d660"
+  - "0572:6831"
+
+m88rs6000_pci_ids:
+  - "1ade:8038" # S952 V3
+  - "14f1:8880" # Hauppauge WinTV HVR-5525
+
+m88ds3103_pci_ids:
+  - "14f1:8852" # S952 V2
+#+END_SRC
 *** tasks
 #+BEGIN_SRC yaml :tangle roles/autoinstall-firmware/tasks/main.yml :padline no
 ---
@@ -8073,17 +8342,42 @@ dependencies:
 
 - name: Firmware dvb-demod-si2168-b40-01.fw for Hauppauge WinTV HD Solo/Duo, PCTV 292e
   get_url:
-    url: https://github.com/OpenELEC/dvb-firmware/raw/master/firmware/dvb-demod-si2168-b40-01.fw
-    checksum: sha256:8507536630d75a316d0719d6b95c04b90c36baa5b457ad457c9bacadafcef134
+    url: https://github.com/LibreELEC/dvb-firmware/raw/master/firmware/dvb-demod-si2168-b40-01.fw
+    checksum: sha256:d25c7deb9f69dca232ce25ab108da8ff5013d6d39088e0ec3475d97ded8af718
     dest: /lib/firmware/dvb-demod-si2168-b40-01.fw
-  when: '"2040:0264" in usb or "2013:025f" in usb'
+  when: '(hauppauge_wintv_hd_usb_ids | intersect(usb)) | length > 0 or (hauppauge_wintv_hd_pci_ids | intersect(pci)) | length > 0'
+  notify: ['reboot required']
+
+- name: Firmware dvb-demod-si2168-02.fw for Hauppauge WinTV quadHD
+  get_url:
+    url: https://github.com/LibreELEC/dvb-firmware/raw/master/firmware/dvb-demod-si2168-02.fw
+    checksum: sha256:5bbcfee4a0dbd55ea9d88d6b7d618afed5937a1f02962f14cdf707e108895cf7
+    dest: /lib/firmware/dvb-demod-si2168-02.fw
+  when: '"14f1:8852" in pci'
+  notify: ['reboot required']
 
 - name: Firmware dvb-fe-xc5000-1.6.114.fw for Hauppauge WinTV-HVR-930C
   get_url:
-    url: https://github.com/OpenELEC/dvb-firmware/raw/master/firmware/dvb-fe-xc5000-1.6.114.fw
+    url: https://github.com/LibreELEC/dvb-firmware/raw/master/firmware/dvb-fe-xc5000-1.6.114.fw
     checksum: sha256:7104bda8df301fe1bd4c09de1708aeb6d0d8e1f9d55505449fecfad82639235f
     dest: /lib/firmware/dvb-fe-xc5000-1.6.114.fw
   when: '"2040:1605" in usb'
+  notify: ['reboot required']
+
+- name: Firmware dvb-demod-m88rs6000.fw for Hauppauge WinTV HVR-5525, DVBSky S952 V3
+  get_url:
+    url: https://github.com/LibreELEC/dvb-firmware/raw/master/firmware/dvb-demod-m88rs6000.fw
+    checksum: sha256:9ac84583d83a4222909cb568236b7786e436f27dc050e60a31df404bb1be19dc
+    dest: /lib/firmware/dvb-demod-m88rs6000.fw
+  when: '(m88rs6000_pci_ids | intersect(pci)) | length > 0'
+
+- name: Firmware dvb-demod-m88ds3103.fw for DVBSky S952 V2
+  get_url:
+    url: https://github.com/LibreELEC/dvb-firmware/raw/master/firmware/dvb-demod-m88ds3103.fw
+    checksum: sha256:4767ab80ceba4a66315cbec2a07ae1f7ebbd19c5758fd098b932e02c9108eff9
+    dest: /lib/firmware/dvb-demod-m88ds3103.fw
+  when: '(m88ds3103_pci_ids | intersect(pci)) | length > 0'
+  notify: ['reboot required']
 
 - name: Firmware ngenge_18.fw for ngene cards
   get_url:
@@ -8095,7 +8389,7 @@ dependencies:
 
 - name: Firmware drxk_a3.mc for drxk
   get_url:
-     url: https://github.com/OpenELEC/dvb-firmware/raw/master/firmware/drxk_a3.mc
+     url: https://github.com/LibreELEC/dvb-firmware/raw/master/firmware/drxk_a3.mc
      checksum: sha256:f8956ad6f92a4ce90a6ab94ed23e2f9a27e9317e936fd3e0119778dd28e7e294
      dest: /lib/firmware/drxk_a3.mc
   when: '"ngene" in modules or "drxk" in modules'
@@ -8103,7 +8397,7 @@ dependencies:
 
 - name: Firmware for Hauppauge Win-TV HVR-4000. NOVA-HD-S2 and Tevii S460
   get_url:
-    url: https://github.com/OpenELEC/dvb-firmware/raw/master/firmware/dvb-fe-cx24116.fw
+    url: https://github.com/LibreELEC/dvb-firmware/raw/master/firmware/dvb-fe-cx24116.fw
     checksum: sha256:8fa49be12cf332b4c9b0379ef997be9ab6e193ae03aae55b39e033ae31e35da0
     dest: /lib/firmware/dvb-fe-cx24116.fw
   when: '"14f1:8802" in pci or "d460:9022" in pci'
@@ -8111,10 +8405,10 @@ dependencies:
 
 - name: Firmware for Tevii S464/470/471/660
   get_url:
-    url: https://github.com/OpenELEC/dvb-firmware/raw/master/firmware/dvb-fe-ds3000.fw
+    url: https://github.com/LibreELEC/dvb-firmware/raw/master/firmware/dvb-fe-ds3000.fw
     checksum: sha256:ad8c23bfb51642f48d31fe4f797182352bb13a4d4b7247b25aea18e208e0e882
     dest: /lib/firmware/dvb-fe-ds3000.fw
-  when: '"d464:9022" in pci or "14f1:8802" in pci or "d470:9022" in pci or "d471:9022" in pci or "9022:d660" in usb or "0572:6831" in usb'
+  when: '(ds3000_pci_ids | intersect(pci)) | length > 0 or (ds3000_usb_ids | intersect(usb)) | length > 0'
   notify: ['reboot required']
 #+END_SRC
 ** autoinstall-dvbsky-firmware
@@ -8316,6 +8610,21 @@ install serial_ir setserial /dev/{{ serial_ir_device }} uart none; /sbin/modprob
 {% endif %}
 #+END_SRC
 ** kodi
+*** defaults
+
+#+BEGIN_SRC yaml :tangle roles/kodi/defaults/main.yml
+kodi_as_flatpak: False
+kodi_config_dir: '{{ vdr.home }}/{{ kodi_as_flatpak | ternary(".var/app/tv.kodi.Kodi/data", ".kodi") }}'
+flatpak_kodi_allowed_dirs:
+  - /media
+  - /net
+  - /srv/audio
+  - /srv/files
+  - /srv/picture
+  - /srv/video
+  - /home/vdr/Downloads
+  - /var/lib/vdr/Downloads
+#+END_SRC
 *** tasks
 **** Install KODI
 ***** main.yml
@@ -8746,9 +9055,56 @@ for language in languages:
                 else:
                     print(err)
 #+END_SRC
+
+** arm64-output
+This role installs vdr-plugin-softhdevice-drm-gles and configures the output to use ~tty7~. A systemd user session allows the use of udiskie and other programs within a systemd user session. Please note that =kodi= is no supported at the moment due to limitation with the dri master.
+#+BEGIN_SRC yaml :tangle roles/arm64-output/tasks/main.yml :mkdirp yes :padline no
+---
+# this role is used to configure the output for arm64 boards like the Raspberry Pi 4 and 5
+
+- name: ensure /etc/systemd/system/vdr.service.d/ exists
+  file:
+    path: /etc/systemd/system/vdr.service.d/
+    state: directory
+
+- name: let vdr run on tty7
+  template:
+    src: templates/systemd/console-output.conf.j2
+    dest: /etc/systemd/system/vdr.service.d/99-console-output.conf
+  notify: ['Reload Units', 'Restart VDR']
+  tags:
+    - config
+
+- name: install vdr-plugin-softhddevice-drm-gles
+  apt:
+    name:
+      - vdr-plugin-softhddevice-drm-gles
+    state: present
+  tags:
+    - packages
+
+- name: set preferred_frontend to softhddevice-drm-gles
+  set_fact:
+    preferred_frontend: softhddevice-drm-gles
+    automatically_installed_output_plugin: vdr-plugin-softhddevice-drm-gles
+
+#+END_SRC
+
+#+begin_src jinja2 :tangle roles/arm64-output/templates/systemd/console-output.conf.j2
+{{ ansible_managed | comment }}
+[Unit]
+Conflicts=getty@tty7.service
+
+[Service]
+StandardInput=tty-force
+StandardOutput=journal
+TTYPath=/dev/tty7
+TTYReset=no
+TTYVHangup=yes
+ExecStartPre=/usr/bin/chvt 7
+#+end_src
 ** rpi
 This role installs =vdr-plugin-rpihddevice= and configures the output to use =tty7=. A Systemd User session allows to use =udiskie= and other programs within a systemd user session. Please note that =kodi= is not supported at the moment on the Raspberry Pi platform since it requires a special build.
-
 *** tasks
 #+BEGIN_SRC yaml :tangle roles/rpi/tasks/main.yml :mkdirp yes :padline no
 ---
@@ -8803,7 +9159,7 @@ Conflicts=getty@tty7.service
 
 [Service]
 StandardInput=tty-force
-StandardOutput=syslog
+StandardOutput=journal
 TTYPath=/dev/tty7
 TTYReset=no
 TTYVHangup=yes
@@ -9340,7 +9696,7 @@ fi
 * Modules
 This section contains custom modules for the yaVDR Playbooks. They are used to collect facts about the system and configure applications and daemons.
 ** hardware_facts.py
-#+BEGIN_SRC python :tangle library/hardware_facts.py :shebang "#!/usr/bin/env python"
+#+BEGIN_SRC python :tangle library/hardware_facts.py :shebang "#!/usr/bin/env python3"
 # This Module collects the vendor- and device ids for USB- and PCI(e)-devices and currently loaded kernel modules.
 DOCUMENTATION = '''
   ---
@@ -9561,7 +9917,7 @@ if __name__ == '__main__':
     main()
 #+END_SRC
 ** pci_facts.py
-#+BEGIN_SRC python :tangle library/pci_facts.py :shebang "#!/usr/bin/env python"
+#+BEGIN_SRC python :tangle library/pci_facts.py :shebang "#!/usr/bin/env python3"
 
 # This module parses the output of lspci for detailed information about available (sub) devices.
 DOCUMENTATION = '''

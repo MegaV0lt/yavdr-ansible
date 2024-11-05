@@ -20,7 +20,15 @@
      libdvd-pkg/build: boolean true
 
 - name: change udev rule to allow KODI to eject optical disks
-  shell: sed 's/--lock-media //' /lib/udev/rules.d/60-cdrom_id.rules > /etc/udev/rules.d/60-cdrom_id.rules
-  args:
-    creates: /etc/udev/rules.d/60-cdrom_id.rules
-    warn: false
+  block:
+    - name: read udev rule for cdrom_id.rules
+      slurp:
+        src: /lib/udev/rules.d/60-cdrom_id.rules
+      register:
+        cdrom_udev_rule
+    
+    - name: write modified udev rule for cdrom_id.rules
+      copy:
+        content: |
+          {{ cdrom_udev_rule.content | b64decode | regex_replace('--lock-media ', '') }}
+        dest: /etc/udev/rules.d/60-cdrom_id.rules
